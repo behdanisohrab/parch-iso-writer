@@ -142,7 +142,7 @@ fn detect_usb_drives_macos() -> Vec<UsbDrive> {
                         if let Some(dict) = info_plist.as_dictionary() {
                             let removable = dict
                                 .get("RemovableMedia")
-                                .and_then(|v| v.as_bool())
+                                .and_then(|v| v.as_boolean())
                                 .unwrap_or(false);
                             let size = dict
                                 .get("TotalSize")

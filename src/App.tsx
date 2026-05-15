@@ -48,7 +48,7 @@ export default function App() {
           <button className={`lang-btn ${language === 'en' ? 'active' : ''}`} onClick={() => setLanguage('en')}>EN</button>
           <button className={`lang-btn ${language === 'fa' ? 'active' : ''}`} onClick={() => setLanguage('fa')}>فا</button>
         </div>
-        <span className="titlebar-driver">v0.1.1</span>
+        <span className="titlebar-driver">v0.1.2</span>
       </div>
 
       <div className="content">

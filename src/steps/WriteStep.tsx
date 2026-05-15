@@ -82,22 +82,14 @@ export default function WriteStep() {
       setExtractProgress(e.payload.percent);
     });
     const unlisten3 = listen<FlashProgressInfo>('flash_progress', (e) => {
-      const payload = e.payload;
-      setFlashProgress(payload);
-      if (
-        stage === 'flashing' &&
-        payload.total_bytes > 0 &&
-        payload.written_bytes >= payload.total_bytes
-      ) {
-        setStage('verifying');
-      }
+      setFlashProgress(e.payload);
     });
     return () => {
       unlisten1.then((f) => f());
       unlisten2.then((f) => f());
       unlisten3.then((f) => f());
     };
-  }, [stage, setDownloadProgress, setExtractProgress, setFlashProgress, setStage]);
+  }, [setDownloadProgress, setExtractProgress, setFlashProgress]);
 
   const pipelineKind = getPipelineKind(selectedRelease, sourceMode);
 

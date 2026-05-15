@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.2 - 2026-05-15
+
+This is a targeted hotfix release for write-flow behavior and macOS CI builds.
+
+### What changed
+
+- Fixed a macOS build failure in USB detection code by using the correct plist API (`as_boolean`).
+- Fixed a write-flow regression where the UI could appear stuck on `Verifying checksum...` after flashing.
+- Restored expected local ISO behavior: checksum verification is skipped completely for local sources.
+
+### Notes
+
+- This release keeps the broader `v0.1.1` packaging and workflow improvements, and focuses only on the regressions found afterward.
+
 ## v0.1.1 - 2026-05-15
 
 This release focuses on reliability and packaging fixes across Linux and macOS.
