@@ -1,5 +1,4 @@
 import type { Release } from '../releases';
-import { useStore } from '../store';
 
 export default function ReleaseCard({
   release,
@@ -10,8 +9,6 @@ export default function ReleaseCard({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const { language } = useStore();
-  const isWsl = release.kind === 'Wsl';
   const isImgTarXz = release.kind === 'ImgTarXz';
 
   return (
@@ -40,7 +37,6 @@ export default function ReleaseCard({
       <div className="release-card-badges">
         <span className="badge">{release.arch}</span>
         {isImgTarXz && <span className="badge badge-accent">.tar.xz</span>}
-        {isWsl && <span className="badge badge-warn">{language === 'fa' ? 'غیر قابل فلش' : 'Not flashable'}</span>}
       </div>
 
       <div className="release-card-description">

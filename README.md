@@ -1,46 +1,49 @@
 # Parch ISO Writer
 
-Parch ISO Writer is a cross-platform desktop app for downloading and flashing Parch Linux images to USB drives.
+Parch ISO Writer is the official desktop utility for downloading and writing Parch Linux images to USB drives.
 
-It is built with Tauri v2:
+It is built with **Tauri v2**:
 - Frontend: React + TypeScript + Zustand
-- Backend: Rust commands exposed through Tauri `invoke`
-- Platforms: Linux, macOS, Windows
+- Backend: Rust command layer exposed via Tauri `invoke`
+- Targets: Linux, macOS, Windows
 
-## Highlights
+## Key Capabilities
 
-- Download official Parch releases with progress, speed, and ETA
-- Verify downloaded images using MD5/SHA256 checksums
-- Support local images (`.iso`, `.img`) and archived ARM images (`.tar.xz`)
-- Automatic USB drive detection with live refresh
-- Real-time flashing progress and cancellation support
-- Native privilege elevation for device writing (`pkexec` on Linux, `osascript` on macOS, PowerShell `RunAs` on Windows)
+- Official release download with progress, speed, and ETA
+- Local image support (`.iso`, `.img`, and `.tar.xz` ARM archives)
+- Checksum verification for downloaded images (MD5/SHA256)
+- Optional local checksum validation via sidecar files (`.sha256` / `.md5`)
+- Flash verification modes (`none`, `first block`, `sampled`, `full hash`)
+- Device guardrails for safer flashing workflows
+- Session logs and post-write actions (eject, open logs)
+- English/Persian bilingual interface
 
-## How It Works
+## Flash Pipeline
 
-The app runs as a 3-step wizard:
+Depending on source type, the write flow is:
+1. Download (optional)
+2. Checksum verification (when available)
+3. Extraction (for `.tar.xz` images)
+4. Flash to target block device
+5. Device sync + post-write verification
 
-1. Source
-- Select an official release to download, or choose a local image file.
+## Security and Safety Notes
 
-2. Drive
-- Choose a removable USB device detected by the backend.
+- Flashing is destructive by design; selected target data will be erased.
+- The app includes target safety checks, including protection against obvious system-disk writes.
+- Elevated privileges may be required for direct device writes.
 
-3. Write
-- Pipeline runs depending on source type:
-- Download (optional), verify checksum (when available), extract `.img` from `.tar.xz` (when required), flash to USB, and verify written data
-
-## Development Setup
+## Development
 
 ### Prerequisites
 
 - Rust toolchain (`rustc`, `cargo`)
-- Bun (recommended) or Node.js + npm
-- Tauri v2 system dependencies for your OS
+- Bun or Node.js/npm
+- Tauri v2 platform dependencies
 
-On Linux, install Tauri runtime dependencies (`webkit2gtk`, `gtk3`, etc.) per Tauri docs for your distro.
+On Linux, install required WebKit/GTK runtime libraries per Tauri documentation.
 
-### Install
+### Install Dependencies
 
 ```bash
 bun install
@@ -52,78 +55,44 @@ bun install
 bun run tauri dev
 ```
 
-### Type Check Frontend
+### Frontend Build Check
 
 ```bash
-bun run tsc --noEmit
+bun run build
 ```
 
-### Check Rust Backend
+### Backend Build Check
 
 ```bash
 cd src-tauri
 cargo check
 ```
 
-## Production Build
+## Project Structure
 
-```bash
-bun run tauri build
-```
-
-Build outputs typically include:
-- Linux: AppImage and `.deb`
-- macOS: `.app`/bundle artifacts
-- Windows: installer/bundle artifacts
-
-(Exact targets are controlled by `src-tauri/tauri.conf.json`.)
-
-## Architecture
-
-Core paths:
-- App shell and wizard: `src/App.tsx`, `src/steps/*`
-- Global state: `src/store.ts`
+- App shell and step flow: `src/App.tsx`, `src/steps/*`
+- Shared app state: `src/store.ts`
+- UI components: `src/components/*`
 - Backend command registration: `src-tauri/src/lib.rs`
-- Flashing implementation: `src-tauri/src/commands/flash.rs`
-- Entry point / elevated CLI dispatch: `src-tauri/src/main.rs`
-
-Data flow:
-- Frontend calls backend commands via `invoke`
-- Backend emits progress events (`download_progress`, `extract_progress`, `flash_progress`)
-- Frontend listens to events and updates UI state in real time
-
-## Elevated Flash Mode
-
-For privileged writes, the app can relaunch itself in a headless elevated mode:
-
-```bash
-parch-iso-writer --flash-elevated <source> <device>
-```
-
-This mode is intended for internal use by the GUI process.
+- Flashing and verification logic: `src-tauri/src/commands/flash.rs`
 
 ## Troubleshooting
 
-### Linux AppImage fails with EGL error
+### Linux/WebKit startup issues
 
-If startup fails with messages like:
-- `Could not create default EGL display: EGL_BAD_PARAMETER`
-
-Recent code includes Linux runtime fallbacks to disable problematic WebKit GPU paths in AppImage environments.
-
-If an issue persists on specific GPUs/drivers, collect:
-- distro + version
-- desktop session (X11/Wayland)
-- GPU + driver version
-- full stderr logs
+If AppImage startup fails with EGL/WebKit errors, collect:
+- distro/version
+- X11 or Wayland session
+- GPU/driver details
+- full stderr output
 
 ### Accessibility warning (`atk-bridge ... unknown signature`)
 
-This warning is often non-fatal and usually not the root cause of startup failure.
+This warning is often non-fatal and typically not the root cause of startup failure.
 
 ## Documentation
 
-Additional docs are under `docs/`:
+See `docs/` for implementation notes:
 - `docs/architecture.md`
 - `docs/backend.md`
 - `docs/frontend.md`

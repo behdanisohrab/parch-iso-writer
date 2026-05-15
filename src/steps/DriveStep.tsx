@@ -7,7 +7,7 @@ import type { UsbDrive } from '../releases';
 import { t } from '../i18n';
 
 export default function DriveStep() {
-  const { drives, setDrives, selectedDrive, setSelectedDrive, selectedRelease, language } = useStore();
+  const { drives, setDrives, selectedDrive, setSelectedDrive, selectedRelease, language, driveSearch, setDriveSearch } = useStore();
 
   useEffect(() => {
     invoke<UsbDrive[]>('list_usb_drives')
@@ -28,13 +28,31 @@ export default function DriveStep() {
       : 4 * 1024 * 1024 * 1024
     : 0;
 
+  const q = driveSearch.trim().toLowerCase();
+  const filteredDrives = drives.filter((d) => {
+    if (!q) return true;
+    return (
+      d.name.toLowerCase().includes(q) ||
+      d.path.toLowerCase().includes(q) ||
+      d.vendor.toLowerCase().includes(q) ||
+      d.model.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="drive-step">
       <div className="step-hint">
         {t(language, 'selectUsbHint')}
       </div>
+      <input
+        className="search-input"
+        value={driveSearch}
+        onChange={(e) => setDriveSearch(e.target.value)}
+        placeholder={t(language, 'searchDrives')}
+        aria-label={t(language, 'searchDrives')}
+      />
       <DriveList
-        drives={drives}
+        drives={filteredDrives}
         selected={selectedDrive}
         onSelect={setSelectedDrive}
         minSizeBytes={minSizeBytes}

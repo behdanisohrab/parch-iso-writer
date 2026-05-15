@@ -1,6 +1,6 @@
 [package]
 name = "parch-iso-writer"
-version = "0.1.2"
+version = "0.1.3"
 description = "Parch Linux ISO Writer — download and flash Parch Linux ISOs to USB drives"
 authors = ["Parch Linux Community"]
 edition = "2021"

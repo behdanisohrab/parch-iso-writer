@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.1.3 - 2026-05-15
+
+This release focuses on safety, verification depth, and user experience improvements in the flashing workflow.
+
+### What changed
+
+- Removed WSL-specific release flow and simplified the app to USB-image writing workflows only.
+- Added configurable post-write verification modes: `none`, `first block`, `sampled`, and full-device hash verification.
+- Added stronger target guardrails to block obvious system-disk writes and require explicit opt-in for non-removable targets.
+- Added write-sync reliability improvements before verification.
+- Added better local image validation with clearer file-type and invalid-input errors.
+- Added local checksum sidecar support (`.sha256` / `.md5`) for local images.
+- Added per-session logging and post-write actions (`Eject Drive`, `Open Logs Folder`).
+- Added UI search fields for release list and detected drives.
+- Improved mobile layout behavior, Persian typography consistency, and theme token cleanup.
+- Added an in-app About page that includes technical project details and embedded changelog view.
+
+### Notes
+
+- The release is packaged from the active `dev` branch workstream and includes the integrated UI/backend reliability changes completed in this cycle.
+
 ## v0.1.2 - 2026-05-15
 
 This is a targeted hotfix release for write-flow behavior and macOS CI builds.

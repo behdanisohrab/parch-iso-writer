@@ -17,6 +17,8 @@ export default function SourceStep() {
     setLocalFilePath,
     archFilter,
     setArchFilter,
+    releaseSearch,
+    setReleaseSearch,
     language,
   } = useStore();
 
@@ -26,9 +28,18 @@ export default function SourceStep() {
     invoke<Release[]>('get_releases').then(setReleases).catch(console.error);
   }, []);
 
-  const filtered = archFilter
-    ? releases.filter((r) => r.arch === archFilter)
-    : releases;
+  const q = releaseSearch.trim().toLowerCase();
+  const filtered = releases.filter((r) => {
+    const archOk = archFilter ? r.arch === archFilter : true;
+    if (!archOk) return false;
+    if (!q) return true;
+    return (
+      r.name.toLowerCase().includes(q) ||
+      r.edition.toLowerCase().includes(q) ||
+      r.arch.toLowerCase().includes(q) ||
+      r.description.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="source-step">
@@ -52,6 +63,13 @@ export default function SourceStep() {
       {sourceMode === 'download' ? (
         <>
           <ArchFilter selected={archFilter} onSelect={setArchFilter} />
+          <input
+            className="search-input"
+            value={releaseSearch}
+            onChange={(e) => setReleaseSearch(e.target.value)}
+            placeholder={t(language, 'searchReleases')}
+            aria-label={t(language, 'searchReleases')}
+          />
           <div className="release-list">
             {filtered.map((release) => (
               <ReleaseCard

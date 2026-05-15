@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub enum ReleaseKind {
     Iso,
     ImgTarXz,
-    Wsl,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -185,18 +184,6 @@ pub const RELEASES: &[Release] = &[
         description: "Trinity desktop for Raspberry Pi.",
         description_fa: "میزکار Trinity برای Raspberry Pi.",
     },
-    Release {
-        id: "wsl",
-        name: "Parch Linux WSL",
-        edition: "wsl",
-        arch: "x86_64",
-        kind: ReleaseKind::Wsl,
-        url: "https://mirror.parchlinux.ir/wsl/parchlinux-wsl-latest.wsl",
-        checksum_url: Some("https://mirror.parchlinux.ir/wsl/parchlinux-wsl-latest.wsl.SHA256"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "Windows Subsystem for Linux image. Not flashable to USB.",
-        description_fa: "تصویر زیرسیستم ویندوز برای لینوکس. قابل فلش به USB نیست.",
-    },
 ];
 
 pub fn parse_checksum_file(content: &str, target_filename: &str) -> Option<String> {
@@ -219,5 +206,4 @@ pub fn parse_checksum_file(content: &str, target_filename: &str) -> Option<Strin
     }
     None
 }
-
 
