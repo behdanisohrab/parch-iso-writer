@@ -1,32 +1,136 @@
-Parch ISO Writer
+# Parch ISO Writer
 
-Parch ISO Writer is a desktop application for downloading and writing Parch Linux operating system images to USB drives. It provides a graphical three step wizard that guides the user through selecting a source image, choosing a target USB drive, and performing the write operation with real time progress feedback.
+Parch ISO Writer is a cross-platform desktop app for downloading and flashing Parch Linux images to USB drives.
 
-The application is built with Tauri version 2 using a Rust backend for system level operations and a React with TypeScript frontend for the user interface. It runs on Linux, macOS, and Windows. On each platform it uses the native privilege elevation mechanism (pkexec on Linux, osascript on macOS, and PowerShell UAC on Windows) to obtain the permissions required for writing to block devices.
+It is built with Tauri v2:
+- Frontend: React + TypeScript + Zustand
+- Backend: Rust commands exposed through Tauri `invoke`
+- Platforms: Linux, macOS, Windows
 
-All source code is licensed under the GNU Affero General Public License version 3. See the LICENSE file for the full license text.
+## Highlights
 
-Documentation is available in the docs directory. Start with docs architecture for an overview of the system design, then read the individual module documentation for details on the Rust backend commands, the React frontend components, the step by step workflow, the release definitions, and the build process.
+- Download official Parch releases with progress, speed, and ETA
+- Verify downloaded images using MD5/SHA256 checksums
+- Support local images (`.iso`, `.img`) and archived ARM images (`.tar.xz`)
+- Automatic USB drive detection with live refresh
+- Real-time flashing progress and cancellation support
+- Native privilege elevation for device writing (`pkexec` on Linux, `osascript` on macOS, PowerShell `RunAs` on Windows)
 
+## How It Works
 
-Features
+The app runs as a 3-step wizard:
 
-The application can download Parch Linux ISO images from the official mirror with automatic resume support for interrupted downloads. It verifies downloaded images against MD5 or SHA256 checksums to ensure integrity. It can extract compressed archive images in the tar dot xz format used for ARM and Raspberry Pi releases. It detects USB drives automatically using platform specific commands and polls for changes every two seconds. It writes images to USB drives with a direct read write loop that reports progress every 250 milliseconds. The write operation runs with elevated privileges when necessary using the operating system's native elevation mechanism. The entire operation can be cancelled at any time, including the flash write process which kills the underlying child process.
+1. Source
+- Select an official release to download, or choose a local image file.
 
+2. Drive
+- Choose a removable USB device detected by the backend.
 
-Getting Started
+3. Write
+- Pipeline runs depending on source type:
+- Download (optional), verify checksum (when available), extract `.img` from `.tar.xz` (when required), flash to USB, and verify written data
 
-Install the dependencies using bun install or your preferred package manager. Run the development server with bun run tauri dev. For a production build use bun run tauri build. The application requires Rust and the Tauri system dependencies for your platform. See the Tauri documentation for platform specific setup instructions.
+## Development Setup
 
-The application window opens at 860 by 680 pixels with a minimum size of 720 by 600 pixels. The interface is a three step wizard. Step one is the source step where the user chooses to download a release from the list or select a local image file. Step two is the drive step where the user selects a target USB drive from the detected list. Step three is the write step which shows a summary, starts the operation, displays progress, and reports the result.
+### Prerequisites
 
+- Rust toolchain (`rustc`, `cargo`)
+- Bun (recommended) or Node.js + npm
+- Tauri v2 system dependencies for your OS
 
-Architecture
+On Linux, install Tauri runtime dependencies (`webkit2gtk`, `gtk3`, etc.) per Tauri docs for your distro.
 
-The system follows a layered architecture with a Rust backend that handles all system level operations and a React frontend that presents the user interface and manages application state. The backend communicates with the frontend through Tauri's invoke and event system. The frontend calls backend functions using the invoke function and receives real time updates through event listeners.
+### Install
 
-The backend is organized into command modules for downloads, drive detection, archive extraction, and flash writing. Each module exposes Tauri commands that the frontend can call. The frontend uses a Zustand store for global state management and React components for each step of the wizard.
+```bash
+bun install
+```
 
-The flash writing subsystem is designed after the architecture used by balenaEtcher. When the application needs to write to a block device and lacks permission, it re invokes itself with elevated privileges using the operating system's native elevation mechanism. The elevated child process performs the copy loop and writes progress information as JSON lines to its standard output stream. The parent process reads this output, parses the JSON, and emits Tauri events that the frontend receives in real time. This avoids relying on external tools like dd whose output buffering behavior makes progress reporting unreliable when the output is piped through a non terminal file descriptor.
+### Run in Development
 
-For detailed documentation on each subsystem see the docs directory. The file docs architecture dot md describes the overall system design. Docs backend dot md covers the Rust backend modules. Docs frontend dot md covers the React frontend components and state management. Docs flashing dot md describes the flash writing subsystem in detail including the elevation mechanism and progress reporting protocol. Docs releases dot md documents the release definitions and data model. Docs building dot md provides build and development instructions.
+```bash
+bun run tauri dev
+```
+
+### Type Check Frontend
+
+```bash
+bun run tsc --noEmit
+```
+
+### Check Rust Backend
+
+```bash
+cd src-tauri
+cargo check
+```
+
+## Production Build
+
+```bash
+bun run tauri build
+```
+
+Build outputs typically include:
+- Linux: AppImage and `.deb`
+- macOS: `.app`/bundle artifacts
+- Windows: installer/bundle artifacts
+
+(Exact targets are controlled by `src-tauri/tauri.conf.json`.)
+
+## Architecture
+
+Core paths:
+- App shell and wizard: `src/App.tsx`, `src/steps/*`
+- Global state: `src/store.ts`
+- Backend command registration: `src-tauri/src/lib.rs`
+- Flashing implementation: `src-tauri/src/commands/flash.rs`
+- Entry point / elevated CLI dispatch: `src-tauri/src/main.rs`
+
+Data flow:
+- Frontend calls backend commands via `invoke`
+- Backend emits progress events (`download_progress`, `extract_progress`, `flash_progress`)
+- Frontend listens to events and updates UI state in real time
+
+## Elevated Flash Mode
+
+For privileged writes, the app can relaunch itself in a headless elevated mode:
+
+```bash
+parch-iso-writer --flash-elevated <source> <device>
+```
+
+This mode is intended for internal use by the GUI process.
+
+## Troubleshooting
+
+### Linux AppImage fails with EGL error
+
+If startup fails with messages like:
+- `Could not create default EGL display: EGL_BAD_PARAMETER`
+
+Recent code includes Linux runtime fallbacks to disable problematic WebKit GPU paths in AppImage environments.
+
+If an issue persists on specific GPUs/drivers, collect:
+- distro + version
+- desktop session (X11/Wayland)
+- GPU + driver version
+- full stderr logs
+
+### Accessibility warning (`atk-bridge ... unknown signature`)
+
+This warning is often non-fatal and usually not the root cause of startup failure.
+
+## Documentation
+
+Additional docs are under `docs/`:
+- `docs/architecture.md`
+- `docs/backend.md`
+- `docs/frontend.md`
+- `docs/flashing.md`
+- `docs/building.md`
+- `docs/releases.md`
+
+## License
+
+GNU Affero General Public License v3.0. See [LICENSE](./LICENSE).

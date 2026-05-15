@@ -1,6 +1,6 @@
 [package]
 name = "parch-iso-writer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Parch Linux ISO Writer — download and flash Parch Linux ISOs to USB drives"
 authors = ["Parch Linux Community"]
 edition = "2021"
@@ -31,3 +31,4 @@ chrono = "0.4"
 log = "0.4"
 futures-util = "0.3"
 lazy_static = "1.4"
+plist = "1.7"

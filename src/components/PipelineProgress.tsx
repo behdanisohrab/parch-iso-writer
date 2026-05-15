@@ -74,7 +74,8 @@ export default function PipelineProgress({
   }
 
   const stageOrder = stages.map(s => s.key);
-  const currentIdx = stage === 'done' ? stageOrder.length : stageOrder.indexOf(stage);
+  const stageKey: OperationStage | 'checksum' = stage === 'verifying' ? 'checksum' : stage;
+  const currentIdx = stage === 'done' ? stageOrder.length : stageOrder.indexOf(stageKey);
   const isError = stage === 'error';
 
   return (
