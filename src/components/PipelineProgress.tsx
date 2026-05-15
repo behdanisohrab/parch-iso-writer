@@ -40,7 +40,7 @@ export default function PipelineProgress({
   flashProgress,
   verificationOk,
 }: {
-  kind: 'Iso' | 'ImgTarXz' | 'Wsl' | 'local';
+  kind: 'Iso' | 'ImgTarXz' | 'local';
   stage: OperationStage;
   downloadProgress: ProgressInfo | null;
   extractProgress: number | null;
@@ -49,12 +49,7 @@ export default function PipelineProgress({
 }) {
   const { language } = useStore();
   let stages: StageDef[];
-  if (kind === 'Wsl') {
-    stages = [
-      { key: 'downloading', label: t(language, 'downloadStep') },
-      { key: 'checksum', label: t(language, 'verifyStep') },
-    ];
-  } else if (kind === 'local') {
+  if (kind === 'local') {
     stages = [
       { key: 'flashing', label: t(language, 'flashStep') },
     ];

@@ -1,4 +1,4 @@
-export type ReleaseKind = 'Iso' | 'ImgTarXz' | 'Wsl';
+export type ReleaseKind = 'Iso' | 'ImgTarXz';
 export type ChecksumKind = 'Md5' | 'Sha256' | 'None';
 
 export interface Release {
@@ -43,6 +43,8 @@ export interface FlashProgressInfo {
   speed_bps: number;
 }
 
+export type VerifyMode = 'none' | 'first_block' | 'sampled' | 'full';
+
 export type AppStep = 1 | 2 | 3;
 export type SourceMode = 'download' | 'local';
 export type OperationStage =
@@ -58,14 +60,12 @@ export const ARCH_LABELS: Record<string, string> = {
   'x86_64': 'x86_64',
   'aarch64': 'aarch64',
   'rpi-aarch64': 'Raspberry Pi',
-  'wsl': 'WSL',
 };
 
 export const ARCH_LABELS_SHORT: Record<string, string> = {
   'x86_64': 'x86',
   'aarch64': 'ARM',
   'rpi-aarch64': 'RPi',
-  'wsl': 'WSL',
 };
 
 export function formatBytes(bytes: number): string {

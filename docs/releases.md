@@ -9,7 +9,6 @@ The releases module defines the static catalog of Parch Linux releases that the 
 pub enum ReleaseKind {
     Iso,
     ImgTarXz,
-    Wsl,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -24,7 +23,7 @@ pub struct Release {
     pub id: &'static str,
     pub name: &'static str,       // "Parch Linux GNOME"
     pub edition: &'static str,    // "gnome"
-    pub arch: &'static str,       // "x86_64", "aarch64", "rpi", "wsl"
+    pub arch: &'static str,       // "x86_64", "aarch64", "rpi"
     pub kind: ReleaseKind,
     pub url: &'static str,
     pub checksum_url: Option<&'static str>,
@@ -60,7 +59,6 @@ Release categories:
 - **x86_64 Desktop (Iso)**: GNOME, Plasma, XFCE, COSMIC, Mini
 - **aarch64 ARM (ImgTarXz)**: Plasma, XFCE, Barebone, Trinity
 - **Raspberry Pi (ImgTarXz)**: Plasma, XFCE, Barebone, Trinity
-- **WSL (Wsl)**: Windows Subsystem for Linux (not flashable, skips DriveStep)
 
 ## Checksum Parsing
 
@@ -106,14 +104,12 @@ pub const ARCH_LABELS: &[(&str, &str)] = &[
     ("x86_64", "x86_64 (64-bit)"),
     ("aarch64", "AArch64 (ARM 64-bit)"),
     ("rpi", "Raspberry Pi"),
-    ("wsl", "WSL (Windows Subsystem for Linux)"),
 ];
 
 pub const ARCH_LABELS_SHORT: &[(&str, &str)] = &[
     ("x86_64", "x86"),
     ("aarch64", "ARM"),
     ("rpi", "RPi"),
-    ("wsl", "WSL"),
 ];
 ```
 

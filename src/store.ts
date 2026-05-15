@@ -5,6 +5,7 @@ import type {
   OperationStage,
   ProgressInfo,
   FlashProgressInfo,
+  VerifyMode,
   Release,
   UsbDrive,
 } from './releases';
@@ -27,9 +28,13 @@ interface AppState {
 
   archFilter: string | null;
   setArchFilter: (arch: string | null) => void;
+  releaseSearch: string;
+  setReleaseSearch: (q: string) => void;
 
   drives: UsbDrive[];
   setDrives: (drives: UsbDrive[]) => void;
+  driveSearch: string;
+  setDriveSearch: (q: string) => void;
 
   selectedDrive: UsbDrive | null;
   setSelectedDrive: (d: UsbDrive | null) => void;
@@ -55,6 +60,11 @@ interface AppState {
   confirmChecked: boolean;
   setConfirmChecked: (c: boolean) => void;
 
+  verifyMode: VerifyMode;
+  setVerifyMode: (m: VerifyMode) => void;
+  allowNonRemovable: boolean;
+  setAllowNonRemovable: (v: boolean) => void;
+
   reset: () => void;
 }
 
@@ -65,7 +75,9 @@ const initial = {
   selectedRelease: null as Release | null,
   localFilePath: null as string | null,
   archFilter: null as string | null,
+  releaseSearch: '',
   drives: [] as UsbDrive[],
+  driveSearch: '',
   selectedDrive: null as UsbDrive | null,
   stage: 'idle' as OperationStage,
   downloadProgress: null as ProgressInfo | null,
@@ -74,6 +86,8 @@ const initial = {
   verificationOk: null as boolean | null,
   error: null as string | null,
   confirmChecked: false,
+  verifyMode: 'first_block' as VerifyMode,
+  allowNonRemovable: false,
 };
 
 export const useStore = create<AppState>((set) => ({
@@ -85,7 +99,9 @@ export const useStore = create<AppState>((set) => ({
   setSelectedRelease: (selectedRelease) => set({ selectedRelease }),
   setLocalFilePath: (localFilePath) => set({ localFilePath }),
   setArchFilter: (archFilter) => set({ archFilter }),
+  setReleaseSearch: (releaseSearch) => set({ releaseSearch }),
   setDrives: (drives) => set({ drives }),
+  setDriveSearch: (driveSearch) => set({ driveSearch }),
   setSelectedDrive: (selectedDrive) => set({ selectedDrive }),
   setStage: (stage) => set({ stage }),
   setDownloadProgress: (downloadProgress) => set({ downloadProgress }),
@@ -94,6 +110,8 @@ export const useStore = create<AppState>((set) => ({
   setVerificationOk: (verificationOk) => set({ verificationOk }),
   setError: (error) => set({ error }),
   setConfirmChecked: (confirmChecked) => set({ confirmChecked }),
+  setVerifyMode: (verifyMode) => set({ verifyMode }),
+  setAllowNonRemovable: (allowNonRemovable) => set({ allowNonRemovable }),
 
   reset: () => set(initial),
 }));

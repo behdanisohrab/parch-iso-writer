@@ -1,0 +1,52 @@
+# Maintainer: Parch Linux Community
+
+pkgname=parch-iso-writer-bin
+pkgver=0.1.3
+pkgrel=1
+pkgdesc='Parch ISO Writer (repacked from upstream .deb)'
+arch=('x86_64')
+url='https://github.com/behdanisohrab/parch-iso-writer'
+license=('AGPL-3.0-only')
+depends=(
+  'gtk3'
+  'webkit2gtk-4.1'
+  'libayatana-appindicator'
+  'hicolor-icon-theme'
+)
+provides=('parch-iso-writer')
+conflicts=('parch-iso-writer')
+options=('!strip')
+
+_repo_owner='behdanisohrab'
+_repo_name='parch-iso-writer'
+_tag="v${pkgver}"
+_deb_file="Parch.ISO.Writer_${pkgver}_amd64.deb"
+source=("https://github.com/${_repo_owner}/${_repo_name}/releases/download/${_tag}/${_deb_file}")
+sha256sums=('SKIP')
+
+package() {
+  cd "${srcdir}"
+
+  local _extract_dir="${srcdir}/deb-extract"
+  rm -rf "${_extract_dir}"
+  mkdir -p "${_extract_dir}"
+
+  # Extract control/data archives from the Debian package.
+  bsdtar -xf "${_deb_file}" -C "${_extract_dir}"
+
+  local _data_archive=''
+  for candidate in data.tar.zst data.tar.xz data.tar.gz data.tar.bz2 data.tar; do
+    if [[ -f "${_extract_dir}/${candidate}" ]]; then
+      _data_archive="${candidate}"
+      break
+    fi
+  done
+
+  if [[ -z "${_data_archive}" ]]; then
+    echo 'Could not find data.tar.* inside the .deb payload.' >&2
+    return 1
+  fi
+
+  # Unpack payload and install directly under /usr, /etc, etc.
+  bsdtar -xf "${_extract_dir}/${_data_archive}" -C "${pkgdir}"
+}

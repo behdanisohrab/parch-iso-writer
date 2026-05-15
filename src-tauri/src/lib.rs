@@ -6,9 +6,10 @@ use commands::download::{
 };
 use commands::drives::{list_usb_drives, start_drive_polling};
 use commands::extract::extract_img_from_tar_xz;
-use commands::flash::{cancel_flash, flash_image};
+use commands::flash::{cancel_flash, eject_drive, flash_image, get_log_path, open_logs_folder};
 use releases::{Release, RELEASES};
 use serde::Serialize;
+use std::io::Read;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ImageInfo {
@@ -37,8 +38,21 @@ fn validate_image(path: String) -> ImageInfo {
         .unwrap_or(0);
 
     let (kind, is_valid) = match extension.as_str() {
-        "iso" => ("iso", true),
-        "img" => ("img", true),
+        "iso" | "img" => {
+            let mut header = [0u8; 6];
+            if let Ok(mut f) = std::fs::File::open(path) {
+                let _ = f.read_exact(&mut header);
+            }
+            if extension == "iso" && &header[0..5] != b"CD001" && size_bytes < 64 * 1024 * 1024 {
+                return ImageInfo {
+                    is_valid: false,
+                    kind: "iso".to_string(),
+                    label: "ISO file looks invalid or truncated".to_string(),
+                    size_bytes,
+                };
+            }
+            (extension.as_str(), true)
+        }
         "xz" => {
             let name = path.file_name()
                 .and_then(|n| n.to_str())
@@ -66,6 +80,14 @@ fn validate_image(path: String) -> ImageInfo {
                         is_valid: true,
                         kind: "tarxz".to_string(),
                         label: "XZ compressed archive (likely contains .img)".to_string(),
+                        size_bytes,
+                    };
+                }
+                if magic == [0x50, 0x4b, 0x03, 0x04] {
+                    return ImageInfo {
+                        is_valid: false,
+                        kind: "zip".to_string(),
+                        label: "ZIP archive detected. Extract an ISO/IMG first.".to_string(),
                         size_bytes,
                     };
                 }
@@ -116,8 +138,12 @@ pub fn run() {
             extract_img_from_tar_xz,
             flash_image,
             cancel_flash,
+            get_log_path,
+            open_logs_folder,
+            eject_drive,
         ])
         .setup(|app| {
+            std::env::set_var("PARCH_SESSION_ID", chrono::Utc::now().timestamp_millis().to_string());
             let handle = app.handle().clone();
             start_drive_polling(handle);
             Ok(())

@@ -2,7 +2,7 @@ import { ARCH_LABELS } from '../releases';
 import { useStore } from '../store';
 import { t } from '../i18n';
 
-const ARCHES = ['x86_64', 'aarch64', 'rpi-aarch64', 'wsl'] as const;
+const ARCHES = ['x86_64', 'aarch64', 'rpi-aarch64'] as const;
 
 export default function ArchFilter({
   selected,

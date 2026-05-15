@@ -6,12 +6,30 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter};
+use chrono::Utc;
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FlashProgressPayload {
     pub written_bytes: u64,
     pub total_bytes: u64,
     pub speed_bps: f64,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerifyMode {
+    None,
+    FirstBlock,
+    Sampled,
+    Full,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlashOptions {
+    pub verify_mode: Option<VerifyMode>,
+    pub allow_non_removable: Option<bool>,
 }
 
 lazy_static::lazy_static! {
@@ -37,6 +55,7 @@ pub async fn flash_image(
     app_handle: AppHandle,
     source_path: String,
     device_path: String,
+    options: Option<FlashOptions>,
 ) -> Result<(), String> {
     set_flash_cancel_flag(false);
     let source_path = Path::new(&source_path);
@@ -44,6 +63,8 @@ pub async fn flash_image(
 
     let source_meta = fs::metadata(source_path)
         .map_err(|e| format!("Cannot open source: {}", e))?;
+    guard_target_device(device_path, options.as_ref())?;
+    append_session_log(&format!("flash:start source={} target={}", source_path.display(), device_path.display()));
 
     #[cfg(target_os = "linux")]
     {
@@ -69,7 +90,8 @@ pub async fn flash_image(
         Ok(dest) => dest,
         Err(err) if err.kind() == ErrorKind::PermissionDenied => {
             elevated_flash_write(&app_handle, source_path, device_path)?;
-            return verify_first_block(source_path, device_path);
+            sync_device_writes(device_path)?;
+            return run_verify(source_path, device_path, options.as_ref());
         }
         Err(err) => return Err(format_open_device_error(&err, None)),
     };
@@ -126,7 +148,8 @@ pub async fn flash_image(
     drop(dest);
     drop(source);
 
-    verify_first_block(source_path, device_path)
+    sync_device_writes(device_path)?;
+    run_verify(source_path, device_path, options.as_ref())
 }
 
 /// Called when running as --flash-elevated <source> <device> (elevated subprocess).
@@ -204,6 +227,75 @@ pub fn flash_image_elevated_cli(source_path: &str, device_path: &str) -> Result<
     verify_first_block(source_path, device_path)
 }
 
+fn run_verify(source_path: &Path, device_path: &Path, options: Option<&FlashOptions>) -> Result<(), String> {
+    let mode = options
+        .and_then(|o| o.verify_mode.clone())
+        .unwrap_or(VerifyMode::FirstBlock);
+    let result = match mode {
+        VerifyMode::None => Ok(()),
+        VerifyMode::FirstBlock => verify_first_block(source_path, device_path),
+        VerifyMode::Sampled => verify_sampled(source_path, device_path),
+        VerifyMode::Full => verify_full_hash(source_path, device_path),
+    };
+    if result.is_ok() {
+        append_session_log(&format!("flash:verify_ok mode={:?}", mode));
+    }
+    result
+}
+
+fn verify_full_hash(source_path: &Path, device_path: &Path) -> Result<(), String> {
+    let mut source = File::open(source_path).map_err(|e| e.to_string())?;
+    let mut dest = File::open(device_path).map_err(|e| e.to_string())?;
+    let total = fs::metadata(source_path).map_err(|e| e.to_string())?.len();
+    let mut src_hash = Sha256::new();
+    let mut dst_hash = Sha256::new();
+    let mut src_buf = vec![0u8; 4 * 1024 * 1024];
+    let mut dst_buf = vec![0u8; 4 * 1024 * 1024];
+    let mut read_total: u64 = 0;
+    loop {
+        let n = source.read(&mut src_buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        src_hash.update(&src_buf[..n]);
+        dest.read_exact(&mut dst_buf[..n]).map_err(|e| e.to_string())?;
+        dst_hash.update(&dst_buf[..n]);
+        read_total += n as u64;
+        if read_total > total {
+            return Err("Verification failed: destination stream exceeded source size".to_string());
+        }
+    }
+    if src_hash.finalize().to_vec() != dst_hash.finalize().to_vec() {
+        return Err("Verification failed: full hash mismatch".to_string());
+    }
+    Ok(())
+}
+
+fn verify_sampled(source_path: &Path, device_path: &Path) -> Result<(), String> {
+    let size = fs::metadata(source_path).map_err(|e| e.to_string())?.len();
+    if size < 4096 {
+        return verify_first_block(source_path, device_path);
+    }
+    let mut source = File::open(source_path).map_err(|e| e.to_string())?;
+    let mut dest = File::open(device_path).map_err(|e| e.to_string())?;
+    let block = 4096usize;
+    let points = [0u64, size / 2, size.saturating_sub(block as u64)];
+    for point in points {
+        use std::io::Seek;
+        use std::io::SeekFrom;
+        source.seek(SeekFrom::Start(point)).map_err(|e| e.to_string())?;
+        dest.seek(SeekFrom::Start(point)).map_err(|e| e.to_string())?;
+        let mut src_buf = vec![0u8; block];
+        let mut dst_buf = vec![0u8; block];
+        source.read_exact(&mut src_buf).map_err(|e| e.to_string())?;
+        dest.read_exact(&mut dst_buf).map_err(|e| e.to_string())?;
+        if src_buf != dst_buf {
+            return Err("Verification failed: sampled read-back mismatch".to_string());
+        }
+    }
+    Ok(())
+}
+
 fn elevated_flash_write(app_handle: &AppHandle, source_path: &Path, device_path: &Path) -> Result<(), String> {
     let exe = std::env::current_exe()
         .map_err(|e| format!("Cannot resolve current executable: {}", e))?;
@@ -260,7 +352,11 @@ fn elevated_flash_write(app_handle: &AppHandle, source_path: &Path, device_path:
         }
 
         let mut child_status: Option<std::process::ExitStatus> = None;
-        for _ in 0..120 {
+        // Slow USB media can take minutes to fully flush and return from final verify.
+        // Keep polling so cancel still works, but avoid failing too early.
+        const ELEVATED_WAIT_POLL_MS: u64 = 500;
+        const ELEVATED_WAIT_MAX_POLLS: u32 = 1200; // 10 minutes
+        for _ in 0..ELEVATED_WAIT_MAX_POLLS {
             if is_flash_cancelled() {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -272,7 +368,7 @@ fn elevated_flash_write(app_handle: &AppHandle, source_path: &Path, device_path:
                     break;
                 }
                 Ok(None) => {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    std::thread::sleep(std::time::Duration::from_millis(ELEVATED_WAIT_POLL_MS));
                 }
                 Err(e) => return Err(format!("Wait error: {}", e)),
             }
@@ -283,7 +379,7 @@ fn elevated_flash_write(app_handle: &AppHandle, source_path: &Path, device_path:
             None => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err("Flashing timed out after 60 seconds waiting for device sync".to_string());
+                return Err("Flashing timed out after 600 seconds waiting for device sync".to_string());
             }
         };
 
@@ -498,6 +594,132 @@ fn format_open_device_error(err: &std::io::Error, elevate_err: Option<&str>) -> 
         "Cannot open device for writing: {}. Try running with elevated privileges.",
         err
     )
+}
+
+fn guard_target_device(device: &Path, options: Option<&FlashOptions>) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let out = Command::new("lsblk")
+            .args(["-J", "-o", "PATH,RM,MOUNTPOINT"])
+            .output()
+            .map_err(|e| format!("guardrails failed: {}", e))?;
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout)
+            .map_err(|e| format!("guardrails parse failed: {}", e))?;
+        let target = device.to_string_lossy().to_string();
+        let mut is_removable = false;
+        if let Some(devices) = json["blockdevices"].as_array() {
+            for d in devices {
+                if d["path"].as_str().unwrap_or("") == target {
+                    is_removable = parse_bool_like(&d["rm"]);
+                }
+            }
+            if has_root_mount(devices, &target) {
+                return Err("Target blocked: this looks like a system disk (/ mount).".to_string());
+            }
+        }
+        if !is_removable && !options.and_then(|o| o.allow_non_removable).unwrap_or(false) {
+            return Err("Target is non-removable. Enable explicit override to continue.".to_string());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn parse_bool_like(value: &serde_json::Value) -> bool {
+    if let Some(b) = value.as_bool() {
+        return b;
+    }
+    if let Some(n) = value.as_u64() {
+        return n != 0;
+    }
+    matches!(value.as_str().unwrap_or("").trim(), "1" | "true" | "True")
+}
+
+#[cfg(target_os = "linux")]
+fn has_root_mount(devices: &[serde_json::Value], target: &str) -> bool {
+    for d in devices {
+        let path = d["path"].as_str().unwrap_or("");
+        let mnt = d["mountpoint"].as_str().unwrap_or("");
+        if (path == target || path.starts_with(&format!("{}p", target))) && mnt == "/" {
+            return true;
+        }
+        if let Some(children) = d["children"].as_array() {
+            if has_root_mount(children, target) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn append_session_log(line: &str) {
+    let _ = fs::create_dir_all("/tmp/parch-iso-writer/logs");
+    let path = current_log_path();
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{} {}", Utc::now().to_rfc3339(), line);
+    }
+}
+
+fn sync_device_writes(device_path: &Path) -> Result<(), String> {
+    let file = OpenOptions::new()
+        .read(true)
+        .open(device_path)
+        .map_err(|e| format!("Cannot reopen device for sync: {}", e))?;
+    file.sync_all().map_err(|e| format!("sync_all failed: {}", e))?;
+    #[cfg(target_os = "linux")]
+    {
+        let status = Command::new("sync").status().map_err(|e| format!("sync command failed: {}", e))?;
+        if !status.success() {
+            return Err(format!("sync command exited with status {}", status));
+        }
+    }
+    append_session_log("flash:device_sync_ok");
+    Ok(())
+}
+
+fn current_log_path() -> String {
+    let session = std::env::var("PARCH_SESSION_ID").unwrap_or_else(|_| "default".to_string());
+    format!("/tmp/parch-iso-writer/logs/session-{}.log", session)
+}
+
+#[tauri::command]
+pub fn get_log_path() -> String {
+    current_log_path()
+}
+
+#[tauri::command]
+pub fn open_logs_folder() -> Result<(), String> {
+    let dir = "/tmp/parch-iso-writer/logs";
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open").arg(dir).spawn().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(dir).spawn().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer").arg(dir).spawn().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn eject_drive(device_path: String) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("eject").arg(device_path).output().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("diskutil").args(["eject", &device_path]).output().map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return Err("Eject is not implemented on Windows yet".to_string());
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]

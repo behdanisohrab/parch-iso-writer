@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import StepIndicator from './components/StepIndicator';
 import SourceStep from './steps/SourceStep';
 import DriveStep from './steps/DriveStep';
 import WriteStep from './steps/WriteStep';
 import ParchLogo from './components/ParchLogo';
+import AboutPage from './pages/AboutPage';
 import { useStore } from './store';
 import { t } from './i18n';
 import './styles/globals.css';
 
 export default function App() {
+  const [page, setPage] = useState<'app' | 'about'>('app');
   const { step, setStep, selectedRelease, sourceMode, selectedDrive, language, setLanguage } = useStore();
 
   const canContinue = () => {
@@ -16,17 +19,12 @@ export default function App() {
       return useStore.getState().localFilePath !== null;
     }
     if (step === 2) {
-      if (selectedRelease?.kind === 'Wsl') return true;
       return selectedDrive !== null;
     }
     return false;
   };
 
   const handleNext = () => {
-    if (step === 2 && selectedRelease?.kind === 'Wsl') {
-      setStep(3);
-      return;
-    }
     if (step < 3) setStep((step + 1) as 1 | 2 | 3);
   };
 
@@ -45,38 +43,47 @@ export default function App() {
           <span className="titlebar-subtext">{t(language, 'appSubtitle')}</span>
         </div>
         <div className="lang-switcher">
+          <button className={`lang-btn ${page === 'about' ? 'active' : ''}`} onClick={() => setPage(page === 'about' ? 'app' : 'about')}>
+            {t(language, 'about')}
+          </button>
           <button className={`lang-btn ${language === 'en' ? 'active' : ''}`} onClick={() => setLanguage('en')}>EN</button>
           <button className={`lang-btn ${language === 'fa' ? 'active' : ''}`} onClick={() => setLanguage('fa')}>فا</button>
         </div>
-        <span className="titlebar-driver">v0.1.2</span>
+        <span className="titlebar-driver">v0.1.3</span>
       </div>
 
       <div className="content">
-        <StepIndicator current={step} labels={{ source: t(language, 'source'), drive: t(language, 'drive'), write: t(language, 'write') }} />
+        {page === 'about' ? (
+          <AboutPage onBack={() => setPage('app')} />
+        ) : (
+          <>
+            <StepIndicator current={step} labels={{ source: t(language, 'source'), drive: t(language, 'drive'), write: t(language, 'write') }} />
 
-        <div className="step-content">
-          {step === 1 && <SourceStep />}
-          {step === 2 && <DriveStep />}
-          {step === 3 && <WriteStep />}
-        </div>
+            <div className="step-content">
+              {step === 1 && <SourceStep />}
+              {step === 2 && <DriveStep />}
+              {step === 3 && <WriteStep />}
+            </div>
 
-        {step < 3 && (
-          <div className="nav-buttons">
-            <button
-              className="btn btn-ghost"
-              onClick={handleBack}
-              disabled={step === 1}
-            >
-              {t(language, 'back')}
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={!canContinue()}
-              onClick={handleNext}
-            >
-              {t(language, 'continue')}
-            </button>
-          </div>
+            {step < 3 && (
+              <div className="nav-buttons">
+                <button
+                  className="btn btn-ghost"
+                  onClick={handleBack}
+                  disabled={step === 1}
+                >
+                  {t(language, 'back')}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={!canContinue()}
+                  onClick={handleNext}
+                >
+                  {t(language, 'continue')}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

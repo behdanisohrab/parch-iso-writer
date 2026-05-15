@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { exists, readTextFile } from '@tauri-apps/plugin-fs';
 import { useStore } from '../store';
 import PipelineProgress from '../components/PipelineProgress';
 import ConfirmWrite from '../components/ConfirmWrite';
@@ -8,7 +9,7 @@ import type {
   ProgressInfo,
   FlashProgressInfo,
   Release,
-  UsbDrive,
+  VerifyMode,
 } from '../releases';
 import { formatBytes } from '../releases';
 import { t } from '../i18n';
@@ -16,7 +17,6 @@ import { t } from '../i18n';
 function getPipelineKind(release: Release | null, sourceMode: string) {
   if (sourceMode === 'local') return 'local' as const;
   if (!release) return 'Iso' as const;
-  if (release.kind === 'Wsl') return 'Wsl' as const;
   if (release.kind === 'ImgTarXz') return 'ImgTarXz' as const;
   return 'Iso' as const;
 }
@@ -67,6 +67,10 @@ export default function WriteStep() {
     setError,
     confirmChecked,
     setConfirmChecked,
+    verifyMode,
+    setVerifyMode,
+    allowNonRemovable,
+    setAllowNonRemovable,
     setStep,
     reset,
     language,
@@ -173,10 +177,26 @@ export default function WriteStep() {
           sourcePath = destPath;
         }
       }
-
-      if (pipelineKind === 'Wsl') {
-        setStage('done');
-        return;
+      if (sourceMode === 'local' && sourcePath) {
+        const shaPath = `${sourcePath}.sha256`;
+        const md5Path = `${sourcePath}.md5`;
+        if (await exists(shaPath)) {
+          setStage('verifying');
+          const line = (await readTextFile(shaPath)).split('\n')[0]?.trim() || '';
+          const expected = line.split(/\s+/)[0] || '';
+          if (!expected) throw new Error('Invalid .sha256 file');
+          const ok = await invoke<boolean>('verify_checksum', { filePath: sourcePath, expected, kind: 'sha256' });
+          setVerificationOk(ok);
+          if (!ok) throw new Error('Local SHA256 checksum mismatch');
+        } else if (await exists(md5Path)) {
+          setStage('verifying');
+          const line = (await readTextFile(md5Path)).split('\n')[0]?.trim() || '';
+          const expected = line.split(/\s+/)[0] || '';
+          if (!expected) throw new Error('Invalid .md5 file');
+          const ok = await invoke<boolean>('verify_checksum', { filePath: sourcePath, expected, kind: 'md5' });
+          setVerificationOk(ok);
+          if (!ok) throw new Error('Local MD5 checksum mismatch');
+        }
       }
 
       setStage('flashing');
@@ -184,6 +204,10 @@ export default function WriteStep() {
       await invoke('flash_image', {
         sourcePath,
         devicePath: selectedDrive?.path || '',
+        options: {
+          verifyMode,
+          allowNonRemovable,
+        },
       });
 
       if (!cancelRef.current) setStage('done');
@@ -193,7 +217,7 @@ export default function WriteStep() {
         setError(typeof err === 'string' ? err : (err as Error).message || 'Unknown error');
       }
     }
-  }, [sourceMode, selectedRelease, localFilePath, selectedDrive, pipelineKind, setStage, setError, setVerificationOk, setDownloadProgress, setExtractProgress, setFlashProgress]);
+  }, [sourceMode, selectedRelease, localFilePath, selectedDrive, pipelineKind, setStage, setError, setVerificationOk, setDownloadProgress, setExtractProgress, setFlashProgress, verifyMode, allowNonRemovable]);
 
   const handleCancel = async () => {
     cancelRef.current = true;
@@ -226,7 +250,7 @@ export default function WriteStep() {
               ? `  (${formatBytes(downloadProgress.total_bytes)})`
               : ''}
           </div>
-          {pipelineKind !== 'Wsl' && pipelineKind !== 'local' && selectedDrive && (
+          {pipelineKind !== 'local' && selectedDrive && (
             <div>
               <span className="summary-key">{t(language, 'targetLabel')}: </span>
               {selectedDrive.name}  {selectedDrive.path}  ({formatBytes(selectedDrive.size_bytes)})
@@ -263,12 +287,35 @@ export default function WriteStep() {
         </div>
       )}
 
-      {pipelineKind !== 'Wsl' && pipelineKind !== 'local' && stage === 'idle' && (
+      {pipelineKind !== 'local' && stage === 'idle' && (
         <ConfirmWrite
           deviceName={selectedDrive?.name || ''}
           checked={confirmChecked}
           onChange={setConfirmChecked}
         />
+      )}
+      {stage === 'idle' && (
+        <div className="card confirm-write">
+          <label>{t(language, 'verifyMode')}</label>
+          <select
+            value={verifyMode}
+            onChange={(e) => setVerifyMode(e.target.value as VerifyMode)}
+            aria-label={t(language, 'verifyMode')}
+          >
+            <option value="first_block">{t(language, 'quickVerify')}</option>
+            <option value="sampled">{t(language, 'sampledVerify')}</option>
+            <option value="full">{t(language, 'fullVerify')}</option>
+            <option value="none">{t(language, 'noVerify')}</option>
+          </select>
+          <label className="confirm-write-check">
+            <input
+              type="checkbox"
+              checked={allowNonRemovable}
+              onChange={(e) => setAllowNonRemovable(e.target.checked)}
+            />
+            {t(language, 'allowNonRemovable')}
+          </label>
+        </div>
       )}
 
       <PipelineProgress
@@ -289,13 +336,12 @@ export default function WriteStep() {
             <button
               className="btn btn-primary"
               disabled={
-                pipelineKind !== 'Wsl' &&
                 pipelineKind !== 'local' &&
                 (!selectedDrive || !confirmChecked)
               }
               onClick={start}
             >
-              {pipelineKind === 'Wsl' ? t(language, 'download') : t(language, 'startWriting')}
+              {t(language, 'startWriting')}
             </button>
           )}
           {isActive && (
@@ -304,9 +350,17 @@ export default function WriteStep() {
             </button>
           )}
           {stage === 'done' && (
-            <button className="btn btn-primary" onClick={reset}>
-              {t(language, 'writeAnother')}
-            </button>
+            <>
+              <button className="btn btn-secondary" onClick={() => invoke('eject_drive', { devicePath: selectedDrive?.path || '' })}>
+                {t(language, 'ejectDrive')}
+              </button>
+              <button className="btn btn-secondary" onClick={() => invoke('open_logs_folder')}>
+                {t(language, 'openLogs')}
+              </button>
+              <button className="btn btn-primary" onClick={reset}>
+                {t(language, 'writeAnother')}
+              </button>
+            </>
           )}
           {stage === 'error' && (
             <button className="btn btn-primary" onClick={start}>
