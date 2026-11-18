@@ -21,32 +21,6 @@ function getPipelineKind(release: Release | null, sourceMode: string) {
   return 'Iso' as const;
 }
 
-function getOverallProgress(
-  stage: string,
-  downloadProgress: ProgressInfo | null,
-  extractProgress: number | null,
-  flashProgress: FlashProgressInfo | null,
-): number {
-  switch (stage) {
-    case 'downloading':
-      return downloadProgress && downloadProgress.total_bytes > 0
-        ? (downloadProgress.downloaded_bytes / downloadProgress.total_bytes) * 100
-        : 0;
-    case 'verifying':
-      return 100;
-    case 'extracting':
-      return extractProgress ?? 0;
-    case 'flashing':
-      return flashProgress && flashProgress.total_bytes > 0
-        ? (flashProgress.written_bytes / flashProgress.total_bytes) * 100
-        : 0;
-    case 'done':
-      return 100;
-    default:
-      return 0;
-  }
-}
-
 export default function WriteStep() {
   const {
     sourceMode,
@@ -97,26 +71,6 @@ export default function WriteStep() {
 
   const pipelineKind = getPipelineKind(selectedRelease, sourceMode);
 
-  const overallProgress = getOverallProgress(stage, downloadProgress, extractProgress, flashProgress);
-
-  const progressLabel = stage === 'downloading'
-    ? t(language, 'downloading')
-    : stage === 'verifying'
-    ? t(language, 'verifying')
-    : stage === 'extracting'
-    ? t(language, 'extracting')
-    : stage === 'flashing'
-    ? t(language, 'writing')
-    : stage === 'done'
-    ? 'Complete'
-    : '';
-
-  const progressSublabel = stage === 'downloading' && downloadProgress
-    ? `${formatBytes(downloadProgress.downloaded_bytes)} / ${formatBytes(downloadProgress.total_bytes)}`
-    : stage === 'flashing' && flashProgress
-    ? `${formatBytes(flashProgress.written_bytes)} / ${formatBytes(flashProgress.total_bytes)}`
-    : '';
-
   const start = useCallback(async () => {
     cancelRef.current = false;
     setError(null);
@@ -130,33 +84,30 @@ export default function WriteStep() {
 
       if (sourceMode === 'download' && selectedRelease) {
         setStage('downloading');
-
         const filename = selectedRelease.url.split('/').pop() || 'download.iso';
-        const destPath = `/tmp/parch-iso-writer/${filename}`;
+        const downloadDest = `/tmp/parch-iso-writer/${filename}`;
 
         await invoke('download_release', {
           url: selectedRelease.url,
-          destPath,
+          destPath: downloadDest,
         });
 
         if (cancelRef.current) return;
 
         if (selectedRelease.checksum_url && selectedRelease.checksum_kind !== 'None') {
           setStage('verifying');
-
           const expected = await invoke<string>('fetch_checksum', {
             checksumUrl: selectedRelease.checksum_url,
             targetFilename: filename,
           });
 
           const ok = await invoke<boolean>('verify_checksum', {
-            filePath: destPath,
+            filePath: downloadDest,
             expected,
             kind: selectedRelease.checksum_kind === 'Md5' ? 'md5' : 'sha256',
           });
 
           setVerificationOk(ok);
-
           if (!ok) {
             setStage('error');
             setError('Checksum verification failed. The download may be corrupt.');
@@ -168,35 +119,66 @@ export default function WriteStep() {
 
         if (selectedRelease.kind === 'ImgTarXz') {
           setStage('extracting');
-          const extractPath = `/tmp/parch-iso-writer/extracted`;
           sourcePath = await invoke<string>('extract_img_from_tar_xz', {
-            archivePath: destPath,
-            destDir: extractPath,
+            archivePath: downloadDest,
+            destDir: '/tmp/parch-iso-writer/extracted',
           });
         } else {
-          sourcePath = destPath;
+          sourcePath = downloadDest;
         }
       }
+
       if (sourceMode === 'local' && sourcePath) {
-        const shaPath = `${sourcePath}.sha256`;
-        const md5Path = `${sourcePath}.md5`;
-        if (await exists(shaPath)) {
+        const sidecarSha = `${sourcePath}.sha256`;
+        const sidecarMd5 = `${sourcePath}.md5`;
+
+        if (await exists(sidecarSha)) {
           setStage('verifying');
-          const line = (await readTextFile(shaPath)).split('\n')[0]?.trim() || '';
-          const expected = line.split(/\s+/)[0] || '';
-          if (!expected) throw new Error('Invalid .sha256 file');
-          const ok = await invoke<boolean>('verify_checksum', { filePath: sourcePath, expected, kind: 'sha256' });
+          const content = await readTextFile(sidecarSha);
+          const expected = content.split(/\s+/)[0]?.trim();
+          const ok = await invoke<boolean>('verify_checksum', {
+            filePath: sourcePath,
+            expected,
+            kind: 'sha256',
+          });
           setVerificationOk(ok);
-          if (!ok) throw new Error('Local SHA256 checksum mismatch');
-        } else if (await exists(md5Path)) {
+          if (!ok) {
+            setStage('error');
+            setError('Local SHA256 checksum verification failed.');
+            return;
+          }
+        } else if (await exists(sidecarMd5)) {
           setStage('verifying');
-          const line = (await readTextFile(md5Path)).split('\n')[0]?.trim() || '';
-          const expected = line.split(/\s+/)[0] || '';
-          if (!expected) throw new Error('Invalid .md5 file');
-          const ok = await invoke<boolean>('verify_checksum', { filePath: sourcePath, expected, kind: 'md5' });
+          const content = await readTextFile(sidecarMd5);
+          const expected = content.split(/\s+/)[0]?.trim();
+          const ok = await invoke<boolean>('verify_checksum', {
+            filePath: sourcePath,
+            expected,
+            kind: 'md5',
+          });
           setVerificationOk(ok);
-          if (!ok) throw new Error('Local MD5 checksum mismatch');
+          if (!ok) {
+            setStage('error');
+            setError('Local MD5 checksum verification failed.');
+            return;
+          }
         }
+
+        if (sourcePath.endsWith('.tar.xz')) {
+          setStage('extracting');
+          sourcePath = await invoke<string>('extract_img_from_tar_xz', {
+            archivePath: sourcePath,
+            destDir: '/tmp/parch-iso-writer/extracted',
+          });
+        }
+      }
+
+      if (cancelRef.current) return;
+
+      if (!selectedDrive) {
+        setStage('error');
+        setError('No USB drive selected.');
+        return;
       }
 
       setStage('flashing');
@@ -214,10 +196,27 @@ export default function WriteStep() {
     } catch (err: unknown) {
       if (!cancelRef.current) {
         setStage('error');
-        setError(typeof err === 'string' ? err : (err as Error).message || 'Unknown error');
+        setError(
+          typeof err === 'string'
+            ? err
+            : (err as Error).message || 'Unknown error during flashing'
+        );
       }
     }
-  }, [sourceMode, selectedRelease, localFilePath, selectedDrive, pipelineKind, setStage, setError, setVerificationOk, setDownloadProgress, setExtractProgress, setFlashProgress, verifyMode, allowNonRemovable]);
+  }, [
+    sourceMode,
+    selectedRelease,
+    localFilePath,
+    selectedDrive,
+    setStage,
+    setError,
+    setVerificationOk,
+    setDownloadProgress,
+    setExtractProgress,
+    setFlashProgress,
+    verifyMode,
+    allowNonRemovable,
+  ]);
 
   const handleCancel = async () => {
     cancelRef.current = true;
@@ -228,147 +227,178 @@ export default function WriteStep() {
     setStage('idle');
   };
 
-  const sourceLabel = selectedRelease
-    ? `${selectedRelease.name}  (${selectedRelease.url.split('/').pop()})`
+  const sourceName = selectedRelease
+    ? selectedRelease.name
     : localFilePath
     ? localFilePath.split('/').pop() || localFilePath
     : 'N/A';
 
-  const isActive = stage === 'downloading' || stage === 'verifying' || stage === 'extracting' || stage === 'flashing';
+  const sourceSub = selectedRelease
+    ? selectedRelease.url.split('/').pop()
+    : localFilePath || '';
+
+  const isActive =
+    stage === 'downloading' ||
+    stage === 'verifying' ||
+    stage === 'extracting' ||
+    stage === 'flashing';
 
   return (
-    <div className="write-step">
-      <div className="card summary-card">
-        <div className="summary-title">
-          {t(language, 'summary')}
-        </div>
-        <div className="summary-content">
-          <div>
-            <span className="summary-key">{t(language, 'sourceLabel')}: </span>
-            {sourceLabel}
-            {downloadProgress?.total_bytes
-              ? `  (${formatBytes(downloadProgress.total_bytes)})`
-              : ''}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div className="step-scroll-content">
+        <div className="summary-strip">
+          <div className="summary-strip-item">
+            <span className="summary-strip-label">{t(language, 'sourceLabel')}</span>
+            <span className="summary-strip-val" title={sourceName}>
+              {sourceName}
+            </span>
+            <span className="summary-strip-sub">{sourceSub}</span>
           </div>
-          {pipelineKind !== 'local' && selectedDrive && (
-            <div>
-              <span className="summary-key">{t(language, 'targetLabel')}: </span>
-              {selectedDrive.name}  {selectedDrive.path}  ({formatBytes(selectedDrive.size_bytes)})
-            </div>
-          )}
+
+          <div className="summary-strip-item">
+            <span className="summary-strip-label">{t(language, 'targetLabel')}</span>
+            <span className="summary-strip-val">
+              {selectedDrive?.name || selectedDrive?.model || 'No drive'}
+            </span>
+            <span className="summary-strip-sub">
+              {selectedDrive
+                ? `${selectedDrive.path} (${formatBytes(selectedDrive.size_bytes)})`
+                : 'Select target'}
+            </span>
+          </div>
         </div>
+
+        {stage === 'idle' && selectedDrive && (
+          <ConfirmWrite
+            deviceName={selectedDrive.name || selectedDrive.path}
+            checked={confirmChecked}
+            onChange={setConfirmChecked}
+          />
+        )}
+
+        {stage === 'idle' && (
+          <div className="mac-card" style={{ padding: '10px 14px' }}>
+            <div className="mac-settings-row">
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                {t(language, 'verifyMode')}
+              </label>
+              <select
+                className="mac-select"
+                value={verifyMode}
+                onChange={(e) => setVerifyMode(e.target.value as VerifyMode)}
+                aria-label={t(language, 'verifyMode')}
+              >
+                <option value="first_block">{t(language, 'quickVerify')}</option>
+                <option value="sampled">{t(language, 'sampledVerify')}</option>
+                <option value="full">{t(language, 'fullVerify')}</option>
+                <option value="none">{t(language, 'noVerify')}</option>
+              </select>
+            </div>
+
+            <label className="mac-checkbox-label" style={{ marginTop: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={allowNonRemovable}
+                onChange={(e) => setAllowNonRemovable(e.target.checked)}
+              />
+              <span>{t(language, 'allowNonRemovable')}</span>
+            </label>
+          </div>
+        )}
+
+        {stage === 'error' && error && (
+          <div style={{ padding: 12, borderRadius: 'var(--radius-sm)', background: 'var(--system-red-dim)', border: '1px solid rgba(255, 69, 58, 0.35)', color: 'var(--system-red)' }}>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{t(language, 'error')}</div>
+            <div style={{ fontSize: 11 }}>{error}</div>
+          </div>
+        )}
+
+        <PipelineProgress
+          kind={pipelineKind}
+          stage={stage}
+          downloadProgress={downloadProgress}
+          extractProgress={extractProgress}
+          flashProgress={flashProgress}
+          verificationOk={verificationOk}
+        />
       </div>
 
-      {isActive && (
-        <div className="card logo-progress-card">
-          <div className="logo-progress-ring-wrap">
-            <svg width={104} height={104} viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" strokeWidth="6" />
-              <circle
-                cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={326.73}
-                strokeDashoffset={326.73 * (1 - overallProgress / 100)}
-                transform="rotate(-90 60 60)"
-                style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-              />
-            </svg>
-            <div className="logo-progress-pct">{overallProgress.toFixed(0)}%</div>
-          </div>
-          <div className="logo-progress-label">{progressLabel}</div>
-          {progressSublabel && <div className="logo-progress-sublabel">{progressSublabel}</div>}
-        </div>
-      )}
-
-      {stage === 'error' && error && (
-        <div className="card write-error-card">
-          <div className="write-error-title">{t(language, 'error')}</div>
-          <div className="write-error-body">{error}</div>
-        </div>
-      )}
-
-      {pipelineKind !== 'local' && stage === 'idle' && (
-        <ConfirmWrite
-          deviceName={selectedDrive?.name || ''}
-          checked={confirmChecked}
-          onChange={setConfirmChecked}
-        />
-      )}
-      {stage === 'idle' && (
-        <div className="card confirm-write">
-          <label>{t(language, 'verifyMode')}</label>
-          <select
-            value={verifyMode}
-            onChange={(e) => setVerifyMode(e.target.value as VerifyMode)}
-            aria-label={t(language, 'verifyMode')}
-          >
-            <option value="first_block">{t(language, 'quickVerify')}</option>
-            <option value="sampled">{t(language, 'sampledVerify')}</option>
-            <option value="full">{t(language, 'fullVerify')}</option>
-            <option value="none">{t(language, 'noVerify')}</option>
-          </select>
-          <label className="confirm-write-check">
-            <input
-              type="checkbox"
-              checked={allowNonRemovable}
-              onChange={(e) => setAllowNonRemovable(e.target.checked)}
-            />
-            {t(language, 'allowNonRemovable')}
-          </label>
-        </div>
-      )}
-
-      <PipelineProgress
-        kind={pipelineKind}
-        stage={stage}
-        downloadProgress={downloadProgress}
-        extractProgress={extractProgress}
-        flashProgress={flashProgress}
-        verificationOk={verificationOk}
-      />
-
-      <div className="nav-buttons">
-        <button className="btn btn-ghost" onClick={() => setStep(2)} disabled={isActive}>
+      <footer className="app-action-bar" style={{ margin: '0 -20px', padding: '0 20px' }}>
+        <button
+          type="button"
+          className="mac-btn mac-btn-ghost"
+          onClick={() => setStep(2)}
+          disabled={isActive}
+        >
           {t(language, 'back')}
         </button>
-        <div className="write-actions">
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {stage === 'idle' && (
             <button
-              className="btn btn-primary"
-              disabled={
-                pipelineKind !== 'local' &&
-                (!selectedDrive || !confirmChecked)
-              }
+              type="button"
+              className="mac-btn mac-btn-primary"
+              disabled={!selectedDrive || !confirmChecked}
               onClick={start}
             >
-              {t(language, 'startWriting')}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span>{t(language, 'startWriting')}</span>
             </button>
           )}
+
           {isActive && (
-            <button className="btn btn-secondary" onClick={handleCancel}>
+            <button
+              type="button"
+              className="mac-btn mac-btn-danger"
+              onClick={handleCancel}
+            >
               {t(language, 'cancel')}
             </button>
           )}
+
           {stage === 'done' && (
             <>
-              <button className="btn btn-secondary" onClick={() => invoke('eject_drive', { devicePath: selectedDrive?.path || '' })}>
+              <button
+                type="button"
+                className="mac-btn mac-btn-secondary"
+                onClick={() =>
+                  invoke('eject_drive', {
+                    devicePath: selectedDrive?.path || '',
+                  })
+                }
+              >
                 {t(language, 'ejectDrive')}
               </button>
-              <button className="btn btn-secondary" onClick={() => invoke('open_logs_folder')}>
+              <button
+                type="button"
+                className="mac-btn mac-btn-secondary"
+                onClick={() => invoke('open_logs_folder')}
+              >
                 {t(language, 'openLogs')}
               </button>
-              <button className="btn btn-primary" onClick={reset}>
+              <button
+                type="button"
+                className="mac-btn mac-btn-primary"
+                onClick={reset}
+              >
                 {t(language, 'writeAnother')}
               </button>
             </>
           )}
+
           {stage === 'error' && (
-            <button className="btn btn-primary" onClick={start}>
+            <button
+              type="button"
+              className="mac-btn mac-btn-primary"
+              onClick={start}
+            >
               {t(language, 'retry')}
             </button>
           )}
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

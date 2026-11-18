@@ -1,7 +1,7 @@
 # Maintainer: Parch Linux Community
 
 pkgname=parch-iso-writer-bin
-pkgver=0.1.3
+pkgver=0.1.4
 pkgrel=1
 pkgdesc='Parch ISO Writer (repacked from upstream .deb)'
 arch=('x86_64')

@@ -11,27 +11,37 @@ export default function ConfirmWrite({
   onChange: (v: boolean) => void;
 }) {
   const { language } = useStore();
+
   return (
-    <div className="card confirm-write">
-      <div className="confirm-write-header">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--warning)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 1L1 14h14L8 1z"/>
-          <line x1="8" y1="6" x2="8" y2="9"/>
-          <circle cx="8" cy="11.5" r="0.5" fill="var(--warning)" stroke="none"/>
+    <div className="mac-alert-box">
+      <div className="mac-alert-header">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
-        <span className="confirm-write-title">{t(language, 'destructive')}</span>
+        <span>{t(language, 'destructive')}</span>
       </div>
-      <div className="confirm-write-text">
+      <div className="mac-alert-body">
         {t(language, 'destructiveText').replace('{device}', deviceName)}
       </div>
-      <label className="confirm-write-check">
+      <label className="mac-checkbox-label">
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          className="confirm-write-checkbox"
         />
-        {t(language, 'confirmErase')}
+        <span>{t(language, 'confirmErase')}</span>
       </label>
     </div>
   );

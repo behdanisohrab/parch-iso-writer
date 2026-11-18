@@ -9,29 +9,6 @@ interface StageDef {
   label: string;
 }
 
-function StageBadge({ currentIdx, idx, stage, label, isError }: {
-  currentIdx: number; idx: number; stage: OperationStage; label: string; isError: boolean;
-}) {
-  const current = currentIdx === idx;
-  const done = currentIdx > idx;
-  return (
-    <div className={`pipeline-badge ${done ? 'done' : ''} ${current ? 'current' : ''} ${isError && current ? 'error' : ''}`}>
-      {done && (
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M2 5l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )}
-      {isError && current && (
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      )}
-      {!done && !(isError && current) && <span>{idx + 1}</span>}
-      <span>{label}</span>
-    </div>
-  );
-}
-
 export default function PipelineProgress({
   kind,
   stage,
@@ -48,11 +25,10 @@ export default function PipelineProgress({
   verificationOk: boolean | null;
 }) {
   const { language } = useStore();
+
   let stages: StageDef[];
   if (kind === 'local') {
-    stages = [
-      { key: 'flashing', label: t(language, 'flashStep') },
-    ];
+    stages = [{ key: 'flashing', label: t(language, 'flashStep') }];
   } else if (kind === 'ImgTarXz') {
     stages = [
       { key: 'downloading', label: t(language, 'downloadStep') },
@@ -68,25 +44,44 @@ export default function PipelineProgress({
     ];
   }
 
-  const stageOrder = stages.map(s => s.key);
+  const stageOrder = stages.map((s) => s.key);
   const stageKey: OperationStage | 'checksum' = stage === 'verifying' ? 'checksum' : stage;
   const currentIdx = stage === 'done' ? stageOrder.length : stageOrder.indexOf(stageKey);
-  const isError = stage === 'error';
 
   return (
-    <div className="card pipeline-card">
-      <div className="pipeline-trackline">
-        {stages.map((s, i) => (
-          <div key={s.key} className="pipeline-trackline-node">
-            <StageBadge currentIdx={currentIdx} idx={i} stage={stage} label={s.label} isError={isError} />
-            {i < stages.length - 1 && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="mac-pipeline-track">
+        {stages.map((s, i) => {
+          const isCurrent = currentIdx === i;
+          const isDone = currentIdx > i;
+
+          return (
+            <div key={s.key} className="mac-pipeline-node">
               <div
-                className="pipeline-connector"
-                style={{ background: currentIdx > i ? 'var(--accent)' : 'var(--border)' }}
-              />
-            )}
-          </div>
-        ))}
+                className={`mac-pipeline-chip ${isDone ? 'done' : ''} ${
+                  isCurrent ? 'current' : ''
+                }`}
+              >
+                {isDone ? (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 6l3 3 5-5" />
+                  </svg>
+                ) : (
+                  <span style={{ fontSize: 10, fontWeight: 700 }}>{i + 1}</span>
+                )}
+                <span>{s.label}</span>
+              </div>
+              {i < stages.length - 1 && (
+                <div
+                  className="mac-pipeline-line"
+                  style={{
+                    background: isDone ? 'var(--accent)' : 'var(--apple-border)',
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {stage === 'downloading' && downloadProgress && (
@@ -105,33 +100,43 @@ export default function PipelineProgress({
       )}
 
       {stage === 'verifying' && (
-        <div className="pipeline-note">
-          {t(language, 'verifying')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--apple-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--apple-border)' }}>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t(language, 'verifying')}</span>
         </div>
       )}
 
       {verificationOk === true && stage !== 'verifying' && (
-        <div className="pipeline-note ok">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--system-green)' }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 6l3 3 5-5" />
           </svg>
-          {t(language, 'checksumOk')}
+          <span>{t(language, 'checksumOk')}</span>
         </div>
       )}
+
       {verificationOk === false && (
-        <div className="pipeline-note error">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--system-red)' }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M3 3l6 6M9 3l-6 6" />
           </svg>
-          {t(language, 'checksumFail')}
+          <span>{t(language, 'checksumFail')}</span>
         </div>
       )}
 
       {stage === 'extracting' && extractProgress !== null && (
-        <ProgressBar
-          percent={extractProgress}
-          label={t(language, 'extracting')}
-        />
+        <ProgressBar percent={extractProgress} label={t(language, 'extracting')} />
       )}
 
       {stage === 'flashing' && flashProgress && (
@@ -149,14 +154,18 @@ export default function PipelineProgress({
       )}
 
       {stage === 'done' && (
-        <div className="pipeline-success">
-          {t(language, 'ready')}
-        </div>
-      )}
-
-      {stage === 'error' && (
-        <div className="pipeline-failed">
-          {t(language, 'operationFailed')}
+        <div className="mac-success-hero">
+          <div className="mac-success-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <div className="mac-success-title">{t(language, 'ready')}</div>
+          <div className="mac-success-desc">
+            {language === 'fa'
+              ? 'حافظه نصاب با موفقیت ساخته شد. می‌توانید سیستم خود را با این فلش‌مموری بوت کنید.'
+              : 'The bootable drive was successfully created. You can now restart your computer and boot from this USB drive.'}
+          </div>
         </div>
       )}
     </div>

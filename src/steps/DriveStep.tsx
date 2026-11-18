@@ -7,7 +7,16 @@ import type { UsbDrive } from '../releases';
 import { t } from '../i18n';
 
 export default function DriveStep() {
-  const { drives, setDrives, selectedDrive, setSelectedDrive, selectedRelease, language, driveSearch, setDriveSearch } = useStore();
+  const {
+    drives,
+    setDrives,
+    selectedDrive,
+    setSelectedDrive,
+    selectedRelease,
+    language,
+    driveSearch,
+    setDriveSearch,
+  } = useStore();
 
   useEffect(() => {
     invoke<UsbDrive[]>('list_usb_drives')
@@ -40,23 +49,46 @@ export default function DriveStep() {
   });
 
   return (
-    <div className="drive-step">
-      <div className="step-hint">
-        {t(language, 'selectUsbHint')}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div className="step-fixed-header">
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          {t(language, 'selectUsbHint')}
+        </div>
+
+        <div className="mac-search-wrap">
+          <svg
+            className="mac-search-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            className="mac-search-input"
+            value={driveSearch}
+            onChange={(e) => setDriveSearch(e.target.value)}
+            placeholder={t(language, 'searchDrives')}
+            aria-label={t(language, 'searchDrives')}
+          />
+        </div>
       </div>
-      <input
-        className="search-input"
-        value={driveSearch}
-        onChange={(e) => setDriveSearch(e.target.value)}
-        placeholder={t(language, 'searchDrives')}
-        aria-label={t(language, 'searchDrives')}
-      />
-      <DriveList
-        drives={filteredDrives}
-        selected={selectedDrive}
-        onSelect={setSelectedDrive}
-        minSizeBytes={minSizeBytes}
-      />
+
+      <div className="step-scroll-content">
+        <DriveList
+          drives={filteredDrives}
+          selected={selectedDrive}
+          onSelect={setSelectedDrive}
+          minSizeBytes={minSizeBytes}
+        />
+      </div>
     </div>
   );
 }

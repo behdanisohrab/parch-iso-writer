@@ -36,8 +36,13 @@ export default function DropZone({
 
   return (
     <div
-      className={`card drop-zone ${dragging ? 'dragging' : ''}`}
-      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      role="button"
+      tabIndex={0}
+      className={`mac-dropzone ${dragging ? 'dragging' : ''}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => {
         e.preventDefault();
@@ -47,20 +52,37 @@ export default function DropZone({
         if (droppedPath) onFileSelected(droppedPath);
       }}
       onClick={openFileDialog}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openFileDialog();
+        }
+      }}
+      aria-label={t(language, 'dropTitle')}
     >
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
-      </svg>
-      <div className="drop-zone-title">{t(language, 'dropTitle')}</div>
-      <div className="drop-zone-subtitle">
-        {t(language, 'dropSubtitle')}
+      <div className="mac-dropzone-icon">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
       </div>
-      <div className="drop-zone-badges">
-        <span className="badge">.iso</span>
-        <span className="badge">.img</span>
-        <span className="badge badge-accent">.tar.xz</span>
+      <div className="mac-dropzone-title">{t(language, 'dropTitle')}</div>
+      <div className="mac-dropzone-subtitle">{t(language, 'dropSubtitle')}</div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <span className="mac-badge mac-badge-accent">.ISO</span>
+        <span className="mac-badge mac-badge-blue">.IMG</span>
+        <span className="mac-badge mac-badge-neutral">.TAR.XZ</span>
       </div>
     </div>
   );

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.1.4 - 2026-11-18
+
+This release brings a complete UI overhaul based on Apple Human Interface Guidelines (HIG) and syncs official Parch Linux releases with the current mirror.
+
+### What changed
+
+- Completely redesigned frontend using macOS HIG principles:
+  - Pinned top toolbar and bottom action bar ensuring no UI overlap or crowding when the window is resized small.
+  - Dedicated scrollable viewport for release and drive lists with smooth momentum scrolling.
+  - Apple-style segmented controls, inset search fields, and compact list cards.
+  - Apple Dark Mode aesthetic with vibrant Parch teal accent.
+- Synchronized official releases with active Parch Linux mirror (`mirror.parchlinux.ir`):
+  - Fixed download 404 errors caused by filename case-sensitivity on the mirror server.
+  - Added official editions: Hyprland (RC), Lite, and Immutable (`.tar.xz`).
+  - Removed deprecated/offline ARM release links.
+  - Improved checksum verification parser with automated unit tests.
+- Bumped app version to 0.1.4 and updated packaging PKGBUILD.
+
 ## v0.1.3 - 2026-05-15
 
 This release focuses on safety, verification depth, and user experience improvements in the flashing workflow.
@@ -48,9 +66,3 @@ This release focuses on reliability and packaging fixes across Linux and macOS.
 - Updated GitHub release workflow for macOS builds:
 - unified mac jobs on `macos-latest`
 - explicitly installs both Rust macOS targets (`x86_64-apple-darwin`, `aarch64-apple-darwin`)
-- Rewrote `README.md` to be clearer and more useful for users and contributors.
-
-### Notes
-
-- The accessibility warning `atk-bridge ... unknown signature` may still appear on some Linux systems and is generally non-fatal.
-- The main Linux startup crash addressed here is the EGL display initialization failure seen in some AppImage environments.

@@ -58,14 +58,10 @@ export type OperationStage =
 
 export const ARCH_LABELS: Record<string, string> = {
   'x86_64': 'x86_64',
-  'aarch64': 'aarch64',
-  'rpi-aarch64': 'Raspberry Pi',
 };
 
 export const ARCH_LABELS_SHORT: Record<string, string> = {
-  'x86_64': 'x86',
-  'aarch64': 'ARM',
-  'rpi-aarch64': 'RPi',
+  'x86_64': 'x86_64',
 };
 
 export function formatBytes(bytes: number): string {
@@ -80,8 +76,12 @@ export function formatSpeed(bps: number): string {
   if (bps === 0) return '0 B/s';
   const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
   const i = Math.floor(Math.log(bps) / Math.log(1024));
-  const val = bps / Math.pow(1024, i);
-  return `${val.toFixed(1)} ${units[i]}`;
+  const val = bytesToFormatted(bps / Math.pow(1024, i), units[i]);
+  return `${val}/s`;
+}
+
+function bytesToFormatted(val: number, unit: string): string {
+  return `${val.toFixed(1)} ${unit}`;
 }
 
 export function formatEta(secs: number): string {

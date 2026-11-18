@@ -31,170 +31,114 @@ pub const RELEASES: &[Release] = &[
     Release {
         id: "gnome",
         name: "Parch Linux GNOME",
-        edition: "gnome",
+        edition: "GNOME",
         arch: "x86_64",
         kind: ReleaseKind::Iso,
-        url: "https://mirror.parchlinux.ir/gnome/ParchLinux-gnome-latest.iso",
+        url: "https://mirror.parchlinux.ir/gnome/Parchlinux-gnome-latest.iso",
         checksum_url: Some("https://mirror.parchlinux.ir/gnome/md5sum.txt"),
         checksum_kind: ChecksumKind::Md5,
-        description: "Full-featured GNOME desktop, recommended for most users.",
-        description_fa: "میزکار کامل گنوم، توصیه‌شده برای بیشتر کاربران.",
+        description: "Full-featured, refined GNOME desktop experience.",
+        description_fa: "میزکار کامل، روان و مدرن گنوم برای کاربری روزمره.",
     },
     Release {
         id: "plasma",
-        name: "Parch Linux Plasma",
-        edition: "plasma",
+        name: "Parch Linux Plasma 6",
+        edition: "Plasma",
         arch: "x86_64",
         kind: ReleaseKind::Iso,
-        url: "https://mirror.parchlinux.ir/plasma/ParchLinux-plasma-latest.iso",
+        url: "https://mirror.parchlinux.ir/plasma/Parchlinux-plasma-latest.iso",
         checksum_url: Some("https://mirror.parchlinux.ir/plasma/md5sum.txt"),
         checksum_kind: ChecksumKind::Md5,
-        description: "KDE Plasma desktop with full Parch customization.",
-        description_fa: "میزکار KDE Plasma با شخصی‌سازی کامل پارچ.",
+        description: "Modern KDE Plasma 6 desktop with custom Parch configurations.",
+        description_fa: "میزکار مدرن KDE Plasma 6 همراه با شخصی‌سازی ویژه پارچ.",
+    },
+    Release {
+        id: "hyprland",
+        name: "Parch Linux Hyprland (RC)",
+        edition: "Hyprland",
+        arch: "x86_64",
+        kind: ReleaseKind::Iso,
+        url: "https://mirror.parchlinux.ir/hyprland/Parchlinux-hyprland-latest.iso",
+        checksum_url: Some("https://mirror.parchlinux.ir/hyprland/md5sum.txt"),
+        checksum_kind: ChecksumKind::Md5,
+        description: "Dynamic Wayland tiling compositor configured out of the box.",
+        description_fa: "محیط کاشی‌کاری مدرن و پویای ویلند برای کاربران کیبورد‌محور.",
     },
     Release {
         id: "xfce",
         name: "Parch Linux XFCE",
-        edition: "xfce",
+        edition: "XFCE",
         arch: "x86_64",
         kind: ReleaseKind::Iso,
-        url: "https://mirror.parchlinux.ir/XFCE/ParchLinux-XFCE-latest.iso",
+        url: "https://mirror.parchlinux.ir/XFCE/Parchlinux-XFCE-latest.iso",
         checksum_url: Some("https://mirror.parchlinux.ir/XFCE/md5sum.txt"),
         checksum_kind: ChecksumKind::Md5,
-        description: "Lightweight XFCE desktop, ideal for older hardware.",
-        description_fa: "میزکار سبک XFCE، مناسب برای سخت‌افزار قدیمی.",
+        description: "Fast, traditional desktop optimized for efficiency and lighter specs.",
+        description_fa: "میزکار سنتی، سبک و سریع مناسب مصرف کم منابع و سخت‌افزارهای ضعیف‌تر.",
     },
     Release {
         id: "cosmic",
         name: "Parch Linux COSMIC",
-        edition: "cosmic",
+        edition: "COSMIC",
         arch: "x86_64",
         kind: ReleaseKind::Iso,
         url: "https://mirror.parchlinux.ir/cosmic/ParchLinux-cosmic-latest.iso",
         checksum_url: Some("https://mirror.parchlinux.ir/cosmic/md5sum.txt"),
         checksum_kind: ChecksumKind::Md5,
-        description: "COSMIC desktop by System76 — modern and Wayland-native.",
-        description_fa: "میزکار COSMIC توسط System76 — مدرن و بومی Wayland.",
+        description: "System76 COSMIC desktop environment built in Rust.",
+        description_fa: "محیط میزکار مدرن COSMIC توسعه‌یافته با زبان راست.",
+    },
+    Release {
+        id: "lite",
+        name: "Parch Linux Lite",
+        edition: "Lite",
+        arch: "x86_64",
+        kind: ReleaseKind::Iso,
+        url: "https://mirror.parchlinux.ir/lite/Parchlinux-lite-latest.iso",
+        checksum_url: Some("https://mirror.parchlinux.ir/lite/md5sum.txt"),
+        checksum_kind: ChecksumKind::Md5,
+        description: "Resource-conscious edition with essential pre-installed utilities.",
+        description_fa: "نسخه کم‌حجم با ابزارهای ضروری و حداقل سرویس‌های پس‌زمینه.",
     },
     Release {
         id: "mini",
         name: "Parch Linux Mini",
-        edition: "mini",
+        edition: "Mini",
         arch: "x86_64",
         kind: ReleaseKind::Iso,
         url: "https://mirror.parchlinux.ir/mini/Parchlinux-mini-latest.iso",
         checksum_url: None,
         checksum_kind: ChecksumKind::None,
-        description: "Minimal ISO, no desktop environment. For advanced users.",
-        description_fa: "ISO حداقلی، بدون محیط میزکار. برای کاربران حرفه‌ای.",
+        description: "Minimal base system without graphical desktop for custom setups.",
+        description_fa: "پایه سیستم‌عامل حداقلی بدون محیط گرافیکی برای نصب‌های سفارشی.",
     },
     Release {
-        id: "aarch64-plasma",
-        name: "Parch Linux Plasma (aarch64)",
-        edition: "plasma",
-        arch: "aarch64",
+        id: "immutable",
+        name: "Parch Linux Immutable",
+        edition: "Immutable",
+        arch: "x86_64",
         kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/aarch64/plasma/ParchLinux-aarch64-plasma-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/aarch64/plasma/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "KDE Plasma for generic 64-bit ARM boards.",
-        description_fa: "KDE Plasma برای بردهای ۶۴ بیتی ARM.",
-    },
-    Release {
-        id: "aarch64-xfce",
-        name: "Parch Linux XFCE (aarch64)",
-        edition: "xfce",
-        arch: "aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/aarch64/xfce/ParchLinux-aarch64-xfce-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/aarch64/xfce/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "XFCE for generic 64-bit ARM boards.",
-        description_fa: "XFCE برای بردهای ۶۴ بیتی ARM.",
-    },
-    Release {
-        id: "aarch64-barebone",
-        name: "Parch Linux Barebone (aarch64)",
-        edition: "barebone",
-        arch: "aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/aarch64/barebone/ParchLinux-aarch64-barebone-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/aarch64/barebone/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "Headless/minimal ARM image. No desktop.",
-        description_fa: "تصویر ARM بدون میزکار. حداقلی.",
-    },
-    Release {
-        id: "aarch64-trinity",
-        name: "Parch Linux Trinity (aarch64)",
-        edition: "trinity",
-        arch: "aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/aarch64/trinity/ParchLinux-aarch64-trinity-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/aarch64/trinity/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "Trinity desktop for generic ARM boards.",
-        description_fa: "میزکار Trinity برای بردهای ARM.",
-    },
-    Release {
-        id: "rpi-plasma",
-        name: "Parch Linux Plasma (Raspberry Pi)",
-        edition: "plasma",
-        arch: "rpi-aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/rpi-aarch64/plasma/ParchLinux-rpi-aarch64-plasma-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/rpi-aarch64/plasma/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "KDE Plasma optimized for Raspberry Pi.",
-        description_fa: "KDE Plasma بهینه‌سازی شده برای Raspberry Pi.",
-    },
-    Release {
-        id: "rpi-xfce",
-        name: "Parch Linux XFCE (Raspberry Pi)",
-        edition: "xfce",
-        arch: "rpi-aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/rpi-aarch64/xfce/ParchLinux-rpi-aarch64-xfce-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/rpi-aarch64/xfce/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "XFCE optimized for Raspberry Pi.",
-        description_fa: "XFCE بهینه‌سازی شده برای Raspberry Pi.",
-    },
-    Release {
-        id: "rpi-barebone",
-        name: "Parch Linux Barebone (Raspberry Pi)",
-        edition: "barebone",
-        arch: "rpi-aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/rpi-aarch64/barebone/ParchLinux-rpi-aarch64-barebone-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/rpi-aarch64/barebone/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "Headless Raspberry Pi image.",
-        description_fa: "تصویر Raspberry Pi بدون میزکار.",
-    },
-    Release {
-        id: "rpi-trinity",
-        name: "Parch Linux Trinity (Raspberry Pi)",
-        edition: "trinity",
-        arch: "rpi-aarch64",
-        kind: ReleaseKind::ImgTarXz,
-        url: "https://mirror.parchlinux.ir/rpi-aarch64/trinity/ParchLinux-rpi-aarch64-trinity-latest.tar.xz",
-        checksum_url: Some("https://mirror.parchlinux.ir/rpi-aarch64/trinity/sha256sum.txt"),
-        checksum_kind: ChecksumKind::Sha256,
-        description: "Trinity desktop for Raspberry Pi.",
-        description_fa: "میزکار Trinity برای Raspberry Pi.",
+        url: "https://mirror.parchlinux.ir/immutable/Parchlinux-immutable-latest.tar.xz",
+        checksum_url: Some("https://mirror.parchlinux.ir/immutable/md5sum.txt"),
+        checksum_kind: ChecksumKind::Md5,
+        description: "Read-only root filesystem architecture for high stability.",
+        description_fa: "معماری روت فقط‌خواندنی برای پایداری و امنیت بالا.",
     },
 ];
 
 pub fn parse_checksum_file(content: &str, target_filename: &str) -> Option<String> {
+    let target_lower = target_filename.to_lowercase();
     for line in content.lines() {
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
-        let parts: Vec<&str> = line.splitn(2, "  ").collect();
-        if parts.len() == 2 && parts[1].trim().ends_with(target_filename) {
-            return Some(parts[0].trim().to_string());
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let filename = parts[1].trim().trim_start_matches('*');
+            if filename.to_lowercase().ends_with(&target_lower) {
+                return Some(parts[0].trim().to_string());
+            }
         }
     }
     let trimmed = content.trim();
@@ -207,3 +151,24 @@ pub fn parse_checksum_file(content: &str, target_filename: &str) -> Option<Strin
     None
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_checksum_file() {
+        let content = "e26d97936ce3a874f0ae194e9fcf8b9b  out/Parchlinux-gnome-latest.iso\n8476893e34729afa705cd98954712187  out/Parchlinux-plasma-latest.iso";
+        assert_eq!(
+            parse_checksum_file(content, "Parchlinux-gnome-latest.iso"),
+            Some("e26d97936ce3a874f0ae194e9fcf8b9b".to_string())
+        );
+        assert_eq!(
+            parse_checksum_file(content, "Parchlinux-plasma-latest.iso"),
+            Some("8476893e34729afa705cd98954712187".to_string())
+        );
+        assert_eq!(
+            parse_checksum_file(content, "nonexistent.iso"),
+            None
+        );
+    }
+}
